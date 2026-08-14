@@ -4499,6 +4499,12 @@ export default function AdminDashboard({
                 <div className="p-3 space-y-2">
                 {teams.map((team) => {
                   const teamPlayers = sortedTeamPlayers(team.id)
+                  const teamAvgHcp = (() => {
+                    const withHcp = teamPlayers.filter(p => p.handicap != null)
+                    return withHcp.length > 0
+                      ? Math.round((withHcp.reduce((s, p) => s + p.handicap!, 0) / withHcp.length) * 10) / 10
+                      : null
+                  })()
                   // Sits beside the team name — reads as part of the heading rather
                   // than a stray line under it. Every format wants the same sentence;
                   // only the legal size differs.
@@ -4788,6 +4794,9 @@ export default function AdminDashboard({
                               <div className="flex items-baseline gap-2 min-w-0">
                                 <p className="font-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 'clamp(10px, 3.4vw, 14px)' }}>{team.name}</p>
                                 <span className="text-xs flex-shrink-0">{playerCountLabel}</span>
+                                {teamAvgHcp != null && (
+                                  <span className="text-xs text-gray-400 flex-shrink-0">Avg. HCP: {teamAvgHcp < 0 ? `+${Math.abs(teamAvgHcp)}` : teamAvgHcp}</span>
+                                )}
                               </div>
                               <p className="text-xs text-gray-500">
                                 {!mixedGroups && <>PIN: <span className="font-mono font-bold text-gray-800">{team.pin}</span></>}
