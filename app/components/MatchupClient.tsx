@@ -3630,21 +3630,21 @@ function HorizontalScorecardTable({
     background: highlight ? '#4a7fa5' : isHoleNum ? '#dde4ee' : navy,
     color: highlight || !isHoleNum ? 'white' : navy,
     fontWeight: 700,
-    fontSize: '0.65rem',
+    fontSize: '0.68rem',
     textAlign: 'center',
-    padding: '0.4rem 0.2rem',
-    minWidth: '1.4rem',
+    padding: '0.5rem 0.25rem',
+    minWidth: '1.5rem',
     whiteSpace: 'nowrap',
   })
   const cell = (highlight?: boolean): React.CSSProperties => ({
     textAlign: 'center',
-    padding: '0.3rem 0.15rem',
-    fontSize: '0.72rem',
+    padding: '0.4rem 0.2rem',
+    fontSize: '0.76rem',
     borderTop: '1px solid #e5e7eb',
     background: highlight ? '#dbeafe' : 'white',
     color: highlight ? '#1e40af' : undefined,
     fontWeight: highlight ? 700 : undefined,
-    minWidth: '1.4rem',
+    minWidth: '1.5rem',
   })
 
   return (
@@ -3652,7 +3652,7 @@ function HorizontalScorecardTable({
     <table style={{ borderCollapse: 'collapse', width: '100%' }}>
       <thead>
         <tr>
-          <th style={{ ...hdr(false, true), textAlign: 'left', paddingLeft: '0.5rem', minWidth: '5rem' }}>HOLE</th>
+          <th style={{ ...hdr(false, true), textAlign: 'left', paddingLeft: '0.5rem', minWidth: '4rem' }}>HOLE</th>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => <th key={n} style={hdr(false, true)}>{n}</th>)}
           <th style={hdr(true)}>Front</th>
           {[10, 11, 12, 13, 14, 15, 16, 17, 18].map((n) => <th key={n} style={hdr(false, true)}>{n}</th>)}
@@ -3679,7 +3679,7 @@ function HorizontalScorecardTable({
           const hasFront = Object.keys(matchHole).some((k) => Number(k) <= 9)
           const hasBack = Object.keys(matchHole).some((k) => Number(k) >= 10)
           const hasAny = Object.keys(matchHole).length > 0
-          const mpCell: React.CSSProperties = { textAlign: 'center', padding: '0.3rem 0.2rem', fontSize: '0.65rem', borderTop: '1px solid #e5e7eb', background: '#f9fafb', minWidth: '1.8rem' }
+          const mpCell: React.CSSProperties = { textAlign: 'center', padding: '0.4rem 0.2rem', fontSize: '0.68rem', borderTop: '1px solid #e5e7eb', background: '#f9fafb', minWidth: '1.5rem' }
           const upperHole = (n: number): React.ReactNode => {
             if (!(n in matchHole)) return <span style={{ color: '#d1d5db' }}>–</span>
             const d = matchHole[n]
@@ -3695,7 +3695,7 @@ function HorizontalScorecardTable({
           }
           return (
             <tr>
-              <td style={{ textAlign: 'left', paddingLeft: '0.5rem', fontSize: '0.72rem', padding: '0.3rem 0.2rem 0.3rem 0.5rem', borderTop: '1px solid #e5e7eb', background: '#f9fafb', whiteSpace: 'nowrap', minWidth: '5rem' }}></td>
+              <td style={{ textAlign: 'left', paddingLeft: '0.5rem', fontSize: '0.76rem', padding: '0.4rem 0.2rem 0.4rem 0.5rem', borderTop: '1px solid #e5e7eb', background: '#f9fafb', whiteSpace: 'nowrap', minWidth: '4rem' }}></td>
               {[1,2,3,4,5,6,7,8,9].map((n) => <td key={n} style={mpCell}>{upperHole(n)}</td>)}
               <td style={{ ...mpCell, background: '#dbeafe' }}>{upperSum(frontMatchCum, hasFront, betType !== 'straight')}</td>
               {[10,11,12,13,14,15,16,17,18].map((n) => <td key={n} style={mpCell}>{upperHole(n)}</td>)}
@@ -3793,7 +3793,7 @@ function HorizontalScorecardTable({
           const hasFront = Object.keys(matchHole).some((k) => Number(k) <= 9)
           const hasBack = Object.keys(matchHole).some((k) => Number(k) >= 10)
           const hasAny = Object.keys(matchHole).length > 0
-          const mpCell: React.CSSProperties = { textAlign: 'center', padding: '0.3rem 0.2rem', fontSize: '0.65rem', borderTop: '1px solid #e5e7eb', background: '#f9fafb', minWidth: '1.8rem' }
+          const mpCell: React.CSSProperties = { textAlign: 'center', padding: '0.4rem 0.2rem', fontSize: '0.68rem', borderTop: '1px solid #e5e7eb', background: '#f9fafb', minWidth: '1.5rem' }
           const lowerHole = (n: number): React.ReactNode => {
             if (!(n in matchHole)) return <span style={{ color: '#d1d5db' }}>–</span>
             const d = matchHole[n]
@@ -3807,7 +3807,7 @@ function HorizontalScorecardTable({
           }
           return (
             <tr>
-              <td style={{ textAlign: 'left', paddingLeft: '0.5rem', fontSize: '0.72rem', padding: '0.3rem 0.2rem 0.3rem 0.5rem', borderTop: '1px solid #e5e7eb', background: '#f9fafb', whiteSpace: 'nowrap', minWidth: '5rem' }}></td>
+              <td style={{ textAlign: 'left', paddingLeft: '0.5rem', fontSize: '0.76rem', padding: '0.4rem 0.2rem 0.4rem 0.5rem', borderTop: '1px solid #e5e7eb', background: '#f9fafb', whiteSpace: 'nowrap', minWidth: '4rem' }}></td>
               {[1,2,3,4,5,6,7,8,9].map((n) => <td key={n} style={mpCell}>{lowerHole(n)}</td>)}
               <td style={{ ...mpCell, background: '#dbeafe' }}>{lowerSum(frontMatchCum, hasFront, betType !== 'straight')}</td>
               {[10,11,12,13,14,15,16,17,18].map((n) => <td key={n} style={mpCell}>{lowerHole(n)}</td>)}
