@@ -1286,9 +1286,9 @@ export default function MatchupClient({
 
       {/* ── Scorecard Modal ── */}
       {showScorecardFor && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.5)' }}
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-3" style={{ background: 'rgba(0,0,0,0.5)' }}
           onClick={() => setShowScorecardFor(null)}>
-          <div className="bg-white rounded-t-2xl max-h-[85vh] flex flex-col" style={{ animation: 'slideUp 0.28s ease-out', boxShadow: '0 0 0 2px rgba(255,255,255,0.3)' }}
+          <div className="bg-white rounded-2xl max-h-[85vh] flex flex-col w-full overflow-hidden" style={{ animation: 'popIn 0.22s ease-out', boxShadow: '0 8px 40px rgba(0,0,0,0.28)' }}
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-4 flex-shrink-0" style={{ background: navy, borderBottom: '1px solid rgba(255,255,255,0.35)' }}>
               <h3 className="font-bold text-white text-base flex-1 min-w-0">
