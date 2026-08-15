@@ -3552,6 +3552,9 @@ function HorizontalScorecardTable({
   onStrokesClick?: (info: { recipientName: string; front: number; back: number; total: number }) => void
   rowStars?: ((() => void) | null)[]
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollLeft = 0 }, [])
+
   const frontNine = holes.filter((h) => h.hole_number <= 9)
   const backNine = holes.filter((h) => h.hole_number >= 10)
   const frontPar = frontNine.reduce((s, h) => s + h.par, 0)
@@ -3645,7 +3648,7 @@ function HorizontalScorecardTable({
   })
 
   return (
-    <div style={{ border: '1px solid #d1d5db', overflowX: 'auto' }}>
+    <div ref={scrollRef} className="scorecard-scroll" style={{ border: '1px solid #d1d5db', overflowX: 'auto', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
     <table style={{ borderCollapse: 'collapse', width: '100%' }}>
       <thead>
         <tr>
