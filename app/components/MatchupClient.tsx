@@ -1309,7 +1309,7 @@ export default function MatchupClient({
               <button onClick={() => setShowScorecardFor(null)}
                 className="text-2xl font-bold leading-none" style={{ color: gold }}>×</button>
             </div>
-            <div className="px-4 pt-3 pb-2 overflow-y-auto">
+            <div className="px-4 pt-3 pb-1 overflow-y-auto">
               {showScorecardFor.type === 'player' ? (
                 <HorizontalScorecardTable
                   rows={[{ label: 'Score', scoreMap: scoreMap[showScorecardFor.id] ?? {} }]}
@@ -1738,7 +1738,7 @@ export default function MatchupClient({
                                   ? <span className="font-medium whitespace-nowrap" style={{ color: gold, fontSize: 'clamp(9px, 2.3vw, 11px)' }}>Bet: {formatBet(m.bet)}</span>
                                   : <span className="text-gray-300 text-[11px]">No bet</span>}
                                 <button onClick={() => { setEditingH2H(m.id); const p = parseBet(m.bet); setEditH2HBetType(p.betType); setEditH2HBetAmount(p.betType === 'nassau' ? '' : p.amount); setEditH2HScoringType(p.scoringType); setEditH2HSweepAmount(p.sweepAmount); setEditH2HSweepEnabled(!!p.sweepAmount); setEditH2HStrokesEnabled(!!p.handicapSide); setEditH2HStrokesSide((p.handicapSide as 'p1' | 'p2') || 'p1'); setEditH2HStrokesFront(p.handicapFront); setEditH2HStrokesBack(p.handicapBack); setEditH2HStrokesTotal(p.handicapTotal); setEditH2HFrontAmount(p.betType === 'nassau' ? String(p.frontAmount || '') : ''); setEditH2HBackAmount(p.betType === 'nassau' ? String(p.backAmount || '') : ''); setEditH2HTotalAmount(p.betType === 'nassau' ? String(p.totalAmount || '') : ''); setEditH2HPresses(m.press ?? []); setEditH2HHoleRange((m.hole_range ?? 'all') as HoleRange); setPressEnabled(false); setNewPressAmount(''); setNewPressStrokes(''); setNewPressStrokesEnabled(false); setNewPressForfeitEnabled(false); setNewPressForfeitSegs({ front: false, back: false, total: false }); setNewPressHoleType('1hole'); setNewPressHoleStart(1); setNewPressHoleEnd(18); setTimeout(() => { const el = editH2HRef.current; if (el) { const top = el.getBoundingClientRect().top + window.scrollY - 70; window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }) } }, 50) }}
-                                  className="flex items-center justify-center w-7 h-7 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors touch-manipulation" style={{ fontSize: '1rem' }}>✎</button>
+                                  className="flex items-center justify-center w-7 h-7 rounded-full text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors touch-manipulation" style={{ fontSize: '1.25rem' }}>✎</button>
                               </span>
                             )}
                             <button
@@ -2410,7 +2410,7 @@ export default function MatchupClient({
                                   ? <span className="font-medium whitespace-nowrap" style={{ color: gold, fontSize: 'clamp(9px, 2.3vw, 11px)' }}>Bet: {formatBet(m.bet)}</span>
                                   : <span className="text-gray-300 text-[11px]">No bet</span>}
                                 <button onClick={() => { setEditingBB(m.id); setEditBBHoleRange((m.hole_range ?? 'all') as HoleRange); const p = parseBet(m.bet); const hasPS = !!(m.player_strokes && Object.keys(m.player_strokes).length > 0); setEditBBStrokesMode(hasPS ? 'player' : 'team'); setEditBBPlayerStrokesDraft(Object.fromEntries(Object.entries(m.player_strokes ?? {}).map(([k, v]) => [k, String(v)]))); setEditBBBetType(p.betType); setEditBBBetAmount(p.betType === 'nassau' ? '' : p.amount); setEditBBScoringType(p.scoringType); setEditBBSweepAmount(p.sweepAmount); setEditBBSweepEnabled(!!p.sweepAmount); setEditBBStrokesEnabled(!!p.handicapSide || hasPS); setEditBBStrokesSide((p.handicapSide as 't1' | 't2') || 't1'); setEditBBStrokesFront(p.handicapFront); setEditBBStrokesBack(p.handicapBack); setEditBBStrokesTotal(p.handicapTotal); setEditBBFrontAmount(p.betType === 'nassau' ? String(p.frontAmount || '') : ''); setEditBBBackAmount(p.betType === 'nassau' ? String(p.backAmount || '') : ''); setEditBBTotalAmount(p.betType === 'nassau' ? String(p.totalAmount || '') : ''); setEditBBPresses(m.press ?? []); setBBPressEnabled(false); setNewPressAmount(''); setNewPressStrokes(''); setNewPressStrokesEnabled(false); setNewPressForfeitEnabled(false); setNewPressForfeitSegs({ front: false, back: false, total: false }); setNewPressHoleType('1hole'); setNewPressHoleStart(1); setNewPressHoleEnd(18); setTimeout(() => { const el = editBBRef.current; if (el) { const top = el.getBoundingClientRect().top + window.scrollY - 70; window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }) } }, 50) }}
-                                  className="flex items-center justify-center w-7 h-7 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors touch-manipulation" style={{ fontSize: '1rem' }}>✎</button>
+                                  className="flex items-center justify-center w-7 h-7 rounded-full text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors touch-manipulation" style={{ fontSize: '1.25rem' }}>✎</button>
                               </span>
                             )}
                             <button
@@ -3048,7 +3048,7 @@ export default function MatchupClient({
                                   setNewMedPressHoleType('1hole'); setNewMedPressHoleStart(1); setNewMedPressHoleEnd(18)
                                   setNewMedPressAmount(''); setNewMedPressStrokesEnabled(false); setNewMedPressStrokesDraft({})
                                 }}
-                                  className="flex items-center justify-center w-7 h-7 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors touch-manipulation" style={{ fontSize: '1rem' }}>✎</button>
+                                  className="flex items-center justify-center w-7 h-7 rounded-full text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors touch-manipulation" style={{ fontSize: '1.25rem' }}>✎</button>
                               </span>
                             )}
                             <button
@@ -3645,7 +3645,7 @@ function HorizontalScorecardTable({
   })
 
   return (
-    <div style={{ border: '1px solid #d1d5db', borderRadius: '0.5rem', overflowX: 'auto' }}>
+    <div style={{ border: '1px solid #d1d5db', overflowX: 'auto' }}>
     <table style={{ borderCollapse: 'collapse', minWidth: '540px', width: '100%' }}>
       <thead>
         <tr>
