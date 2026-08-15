@@ -1309,7 +1309,7 @@ export default function MatchupClient({
               <button onClick={() => setShowScorecardFor(null)}
                 className="text-2xl font-bold leading-none" style={{ color: gold }}>×</button>
             </div>
-            <div className="px-4 pt-3 pb-1 overflow-y-auto">
+            <div className="px-4 pt-3 pb-0 overflow-y-auto">
               {showScorecardFor.type === 'player' ? (
                 <HorizontalScorecardTable
                   rows={[{ label: 'Score', scoreMap: scoreMap[showScorecardFor.id] ?? {} }]}
@@ -3629,24 +3629,24 @@ function HorizontalScorecardTable({
     fontWeight: 700,
     fontSize: '0.65rem',
     textAlign: 'center',
-    padding: '0.4rem 0.25rem',
-    minWidth: '1.8rem',
+    padding: '0.4rem 0.2rem',
+    minWidth: '1.4rem',
     whiteSpace: 'nowrap',
   })
   const cell = (highlight?: boolean): React.CSSProperties => ({
     textAlign: 'center',
-    padding: '0.3rem 0.2rem',
+    padding: '0.3rem 0.15rem',
     fontSize: '0.72rem',
     borderTop: '1px solid #e5e7eb',
     background: highlight ? '#dbeafe' : 'white',
     color: highlight ? '#1e40af' : undefined,
     fontWeight: highlight ? 700 : undefined,
-    minWidth: '1.8rem',
+    minWidth: '1.4rem',
   })
 
   return (
     <div style={{ border: '1px solid #d1d5db', overflowX: 'auto' }}>
-    <table style={{ borderCollapse: 'collapse', minWidth: '540px', width: '100%' }}>
+    <table style={{ borderCollapse: 'collapse', width: '100%' }}>
       <thead>
         <tr>
           <th style={{ ...hdr(false, true), textAlign: 'left', paddingLeft: '0.5rem', minWidth: '5rem' }}>HOLE</th>
