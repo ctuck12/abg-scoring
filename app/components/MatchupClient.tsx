@@ -1309,7 +1309,7 @@ export default function MatchupClient({
               <button onClick={() => setShowScorecardFor(null)}
                 className="text-2xl font-bold leading-none" style={{ color: gold }}>×</button>
             </div>
-            <div className="px-4 py-4 overflow-x-auto overflow-y-auto flex-1">
+            <div className="px-4 pt-3 pb-3 overflow-x-auto overflow-y-auto">
               {showScorecardFor.type === 'player' ? (
                 <HorizontalScorecardTable
                   rows={[{ label: 'Score', scoreMap: scoreMap[showScorecardFor.id] ?? {} }]}
@@ -3645,6 +3645,7 @@ function HorizontalScorecardTable({
   })
 
   return (
+    <div style={{ border: '1px solid #e5e7eb', borderRadius: '0.5rem', overflow: 'hidden' }}>
     <table style={{ borderCollapse: 'collapse', minWidth: '540px', width: '100%' }}>
       <thead>
         <tr>
@@ -3814,6 +3815,7 @@ function HorizontalScorecardTable({
         })()}
       </tbody>
     </table>
+    </div>
   )
 }
 
