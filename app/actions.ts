@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import type { BBPlayerStrokes } from '@/lib/scoring'
 
 import { createServerClient } from '@/lib/supabase-server'
 import { sendEmailNotification, sendPushToAll } from '@/lib/notify'
@@ -1436,7 +1437,7 @@ export async function saveBestBallMatchup(
   team2Player1Id: string, team2Player2Id: string,
   bet: string,
   holeRange: string = 'all',
-  playerStrokes: Record<string, number> | null = null
+  playerStrokes: BBPlayerStrokes | null = null
 ) {
   const authError = await requireAnyLogin()
   if (authError) return { error: authError }
@@ -1468,7 +1469,7 @@ export async function updateBestBallHoleRange(id: string, holeRange: string) {
   return {}
 }
 
-export async function updateBestBallPlayerStrokes(id: string, playerStrokes: Record<string, number> | null) {
+export async function updateBestBallPlayerStrokes(id: string, playerStrokes: BBPlayerStrokes | null) {
   const authError = await requireAnyLogin()
   if (authError) return { error: authError }
   const sb = createServerClient()

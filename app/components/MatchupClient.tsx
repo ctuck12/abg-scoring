@@ -7,7 +7,7 @@ import {
   updateBestBallPlayerStrokes,
   saveMedleyMatchup, updateMedleyMatchup, deleteMedleyMatchup, updateMedleyPresses,
 } from '@/app/actions'
-import { computeBBStrokeHoles, applyPlayerStrokesToScoreMap, pressForfeitMap, computeMedley, computeAllMatchupPayouts, type PressForfeit, type MedleyMatchup, type MedleyPlayerEntry, type MedleyPressEntry } from '@/lib/scoring'
+import { computeBBStrokeHoles, applyPlayerStrokesToScoreMap, buildBBPlayerStrokes, bbPlayerStrokesDraft as playerStrokesToDraft, bbPlayerStrokeTotal, isSplitPlayerStrokes, type BBPlayerStrokes, pressForfeitMap, computeMedley, computeAllMatchupPayouts, type PressForfeit, type MedleyMatchup, type MedleyPlayerEntry, type MedleyPressEntry } from '@/lib/scoring'
 import { ScoreNotation } from './ScoreNotation'
 import PinLoginModal from './PinLoginModal'
 
@@ -24,18 +24,43 @@ type BestBallMatchup = {
   bet: string
   press: PressEntry[]
   hole_range?: string
-  player_strokes?: Record<string, number> | null
+  player_strokes?: BBPlayerStrokes | null
 }
 type ScorecardTarget =
   | { type: 'player'; id: string; name: string }
   | { type: 'h2h'; p1Id: string; p2Id: string; p1Name: string; p2Name: string; p1Handicap?: number | null; p2Handicap?: number | null; scoringType: ScoringType; betType: BetType | ''; handicapSide: string; handicapFront: number; handicapBack: number; handicapTotal: number }
   | { type: 'bestball'; p1Id: string; p2Id: string; teamName: string }
-  | { type: 'bb-scorecards'; t1p1Id: string; t1p2Id: string; t2p1Id: string; t2p2Id: string; t1p1Name: string; t1p2Name: string; t2p1Name: string; t2p2Name: string; t1Name: string; t2Name: string; scoringType: ScoringType; betType: BetType | ''; handicapSide: string; handicapFront: number; handicapBack: number; handicapTotal: number; playerStrokes?: Record<string, number> | null; holeRange?: string }
+  | { type: 'bb-scorecards'; t1p1Id: string; t1p2Id: string; t2p1Id: string; t2p2Id: string; t1p1Name: string; t1p2Name: string; t2p1Name: string; t2p2Name: string; t1Name: string; t2Name: string; scoringType: ScoringType; betType: BetType | ''; handicapSide: string; handicapFront: number; handicapBack: number; handicapTotal: number; playerStrokes?: BBPlayerStrokes | null; holeRange?: string }
   /** Every medley player's card at once, already in the standings order the card shows. */
   | { type: 'medley-scorecards'; title: string; entries: { id: string; name: string; strokes: { front: number; back: number; total: number } }[] }
 
 const navy = '#0f172a'
 const gold = '#f59e0b'
+
+// "Front 2 · Back 1" for a split, nothing for a single count.
+function splitLabel(v: BBPlayerStrokes[string] | null | undefined): string | undefined {
+  if (!isSplitPlayerStrokes(v)) return undefined
+  return `Front ${Math.max(0, Number(v.front) || 0)} · Back ${Math.max(0, Number(v.back) || 0)}`
+}
+
+// Turning the front/back split on seeds each player's front and back from their
+// single count (odd stroke on the front); turning it off sums them back.
+function splitDraftToggle(prev: Record<string, string>, ids: string[], on: boolean): Record<string, string> {
+  const next = { ...prev }
+  const whole = (v: string | undefined) => Math.max(0, Math.floor(parseFloat(v ?? '') || 0))
+  for (const id of ids) {
+    if (on) {
+      if (next[`${id}:front`] != null || next[`${id}:back`] != null) continue
+      const n = whole(prev[id])
+      if (n > 0) { next[`${id}:front`] = String(Math.ceil(n / 2)); next[`${id}:back`] = String(Math.floor(n / 2)) }
+    } else {
+      const n = whole(prev[`${id}:front`]) + whole(prev[`${id}:back`])
+      if (prev[`${id}:front`] != null || prev[`${id}:back`] != null) next[id] = n > 0 ? String(n) : ''
+      delete next[`${id}:front`]; delete next[`${id}:back`]
+    }
+  }
+  return next
+}
 
 function ScoreCell({ strokes, par }: { strokes: number; par: number }) {
   const diff = strokes - par
@@ -548,6 +573,7 @@ export default function MatchupClient({
   const [bbStrokesTotal, setBbStrokesTotal] = useState('')
   const [bbStrokesMode, setBbStrokesMode] = useState<'team' | 'player'>('team')
   const [bbPlayerStrokesDraft, setBbPlayerStrokesDraft] = useState<Record<string, string>>({})
+  const [bbPlayerStrokesSplit, setBbPlayerStrokesSplit] = useState(false)
   const [savingBB, setSavingBB] = useState(false)
 
   const editBBRef = useRef<HTMLDivElement>(null)
@@ -565,6 +591,7 @@ export default function MatchupClient({
   const [editBBStrokesTotal, setEditBBStrokesTotal] = useState('')
   const [editBBStrokesMode, setEditBBStrokesMode] = useState<'team' | 'player'>('team')
   const [editBBPlayerStrokesDraft, setEditBBPlayerStrokesDraft] = useState<Record<string, string>>({})
+  const [editBBPlayerStrokesSplit, setEditBBPlayerStrokesSplit] = useState(false)
   const [editBBFrontAmount, setEditBBFrontAmount] = useState('')
   const [editBBBackAmount, setEditBBBackAmount] = useState('')
   const [editBBTotalAmount, setEditBBTotalAmount] = useState('')
@@ -585,7 +612,7 @@ export default function MatchupClient({
   const [confirmSaveEdit, setConfirmSaveEdit] = useState<{ run: () => void } | null>(null)
   const saveEditConfirmed = useRef(false)
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false)
-  const [strokesPopover, setStrokesPopover] = useState<{ recipientName: string; front: number; back: number; total: number } | { playerStrokes: { name: string; strokes: number; holesLabel: string; contribLabel?: string }[] } | null>(null)
+  const [strokesPopover, setStrokesPopover] = useState<{ recipientName: string; front: number; back: number; total: number } | { playerStrokes: { name: string; strokes: number; split?: string; holesLabel: string; contribLabel?: string }[] } | null>(null)
 
   function captureSearchPos() {
     if (searchWrapperRef.current && !fixedSearch) {
@@ -714,10 +741,9 @@ export default function MatchupClient({
       useTeamStrokes ? bbStrokesBack : '',
       useTeamStrokes ? bbStrokesTotal : '',
     )
-    const psEntries = (bbScoringType === 'stroke' && bbStrokesEnabled && bbStrokesMode === 'player')
-      ? ids.map((id) => [id, Math.max(0, Math.floor(parseFloat(bbPlayerStrokesDraft[id] ?? '') || 0))] as [string, number]).filter(([, n]) => n > 0)
-      : []
-    const playerStrokesObj = psEntries.length > 0 ? Object.fromEntries(psEntries) : null
+    const playerStrokesObj = (bbScoringType === 'stroke' && bbStrokesEnabled && bbStrokesMode === 'player')
+      ? buildBBPlayerStrokes(ids, bbPlayerStrokesDraft, bbPlayerStrokesSplit && bbHoleRange === 'all')
+      : null
     const result = await saveBestBallMatchup(roundId, bbT1P1, bbT1P2, bbT2P1, bbT2P2, bet, bbHoleRange, playerStrokesObj)
     if (!result.error && result.id) {
       setBestBallMatchups((prev) => [...prev, {
@@ -729,7 +755,7 @@ export default function MatchupClient({
       setBbFrontAmount(''); setBbBackAmount(''); setBbTotalAmount('')
       setBbSweepAmount(''); setBbSweepEnabled(false)
       setBbStrokesEnabled(false); setBbStrokesFront(''); setBbStrokesBack(''); setBbStrokesTotal('')
-      setBbStrokesMode('team'); setBbPlayerStrokesDraft({})
+      setBbStrokesMode('team'); setBbPlayerStrokesDraft({}); setBbPlayerStrokesSplit(false)
       setBbHoleRange('all')
       setShowBBForm(false)
     }
@@ -812,10 +838,9 @@ export default function MatchupClient({
     )
     const m0 = bestBallMatchups.find((m) => m.id === id)
     const psIds = m0 ? [m0.team1_player1_id, m0.team1_player2_id, m0.team2_player1_id, m0.team2_player2_id] : []
-    const psEntries = (editBBScoringType === 'stroke' && editBBStrokesEnabled && editBBStrokesMode === 'player')
-      ? psIds.map((pid) => [pid, Math.max(0, Math.floor(parseFloat(editBBPlayerStrokesDraft[pid] ?? '') || 0))] as [string, number]).filter(([, n]) => n > 0)
-      : []
-    const savedPlayerStrokes = psEntries.length > 0 ? Object.fromEntries(psEntries) : null
+    const savedPlayerStrokes = (editBBScoringType === 'stroke' && editBBStrokesEnabled && editBBStrokesMode === 'player')
+      ? buildBBPlayerStrokes(psIds, editBBPlayerStrokesDraft, editBBPlayerStrokesSplit && editBBHoleRange === 'all')
+      : null
     const savedBBPresses = editBBPresses
     const savedBBHoleRange = editBBHoleRange
     setBestBallMatchups((prev) => prev.map((m) => m.id === id ? { ...m, bet, press: savedBBPresses, hole_range: savedBBHoleRange, player_strokes: savedPlayerStrokes } : m))
@@ -1084,7 +1109,7 @@ export default function MatchupClient({
                   {strokesPopover.playerStrokes.map((e) => (
                     <div key={e.name}>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-gray-800">{e.name}</span>
+                        <span className="text-sm font-semibold text-gray-800">{e.name}{e.split && <span className="ml-1.5 text-xs font-medium text-gray-500">({e.split})</span>}</span>
                         <span className="text-xl font-bold" style={{ color: gold }}>+{e.strokes}</span>
                       </div>
                       {e.holesLabel && (
@@ -1374,7 +1399,8 @@ export default function MatchupClient({
                   const entries = ids
                     .map((id, i) => ({
                       name: names[i],
-                      strokes: Number(target.playerStrokes?.[id]) || 0,
+                      strokes: bbPlayerStrokeTotal(target.playerStrokes?.[id]),
+                      split: splitLabel(target.playerStrokes?.[id]),
                       holesLabel: Object.entries(modalStrokeHoles[id] ?? {})
                         .sort((a, b) => Number(a[0]) - Number(b[0]))
                         .map(([h, n]) => (n as number) > 1 ? `${h} (×${n})` : h)
@@ -2269,19 +2295,48 @@ export default function MatchupClient({
                               </button>
                             ))}
                           </div>
-                          {bbStrokesMode === 'player' ? (
+                          {bbStrokesMode === 'player' ? ((() => {
+                            const split = bbPlayerStrokesSplit && bbHoleRange === 'all'
+                            const cls = 'w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-200'
+                            return (
                             <div className="space-y-1.5">
+                              {bbHoleRange === 'all' && (
+                                <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 cursor-pointer">
+                                  <input type="checkbox" checked={bbPlayerStrokesSplit} onChange={(e) => { const on = e.target.checked; setBbPlayerStrokesSplit(on); setBbPlayerStrokesDraft((prev) => splitDraftToggle(prev, [bbT1P1, bbT1P2, bbT2P1, bbT2P2].filter(Boolean), on)) }} className="rounded" />
+                                  Separate front &amp; back
+                                </label>
+                              )}
+                              {split && (
+                                <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
+                                  <span className="flex-1" />
+                                  <span className="w-16 text-center">Front</span>
+                                  <span className="w-16 text-center">Back</span>
+                                </div>
+                              )}
                               {[bbT1P1, bbT1P2, bbT2P1, bbT2P2].map((pid, i) => pid ? (
                                 <div key={pid} className="flex items-center gap-2">
                                   <span className="flex-1 min-w-0 text-sm text-gray-800 truncate">{players.find((p) => p.id === pid)?.name.split(' ')[0] ?? `Player ${i + 1}`}</span>
-                                  <input type="number" min="0" step="1" placeholder="0"
-                                    value={bbPlayerStrokesDraft[pid] ?? ''}
-                                    onChange={(e) => setBbPlayerStrokesDraft((prev) => ({ ...prev, [pid]: e.target.value }))}
-                                    className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-200" />
+                                  {split ? (<>
+                                    <input type="number" min="0" step="1" placeholder="0" aria-label="Front strokes"
+                                      value={bbPlayerStrokesDraft[`${pid}:front`] ?? ''}
+                                      onChange={(e) => setBbPlayerStrokesDraft((prev) => ({ ...prev, [`${pid}:front`]: e.target.value }))}
+                                      className={cls} />
+                                    <input type="number" min="0" step="1" placeholder="0" aria-label="Back strokes"
+                                      value={bbPlayerStrokesDraft[`${pid}:back`] ?? ''}
+                                      onChange={(e) => setBbPlayerStrokesDraft((prev) => ({ ...prev, [`${pid}:back`]: e.target.value }))}
+                                      className={cls} />
+                                  </>) : (
+                                    <input type="number" min="0" step="1" placeholder="0"
+                                      value={bbPlayerStrokesDraft[pid] ?? ''}
+                                      onChange={(e) => setBbPlayerStrokesDraft((prev) => ({ ...prev, [pid]: e.target.value }))}
+                                      className={cls} />
+                                  )}
                                 </div>
                               ) : null)}
-                              <p className="text-xs text-gray-400">Strokes are applied automatically on each player&apos;s hardest handicap holes.</p>
+                              <p className="text-xs text-gray-400">{split ? 'Front strokes go on the hardest holes 1–9, back strokes on the hardest holes 10–18.' : <>Strokes are applied automatically on each player&apos;s hardest handicap holes.</>}</p>
                             </div>
+                            )
+                          })()
                           ) : (<>
                           <select value={bbStrokesSide} onChange={(e) => setBbStrokesSide(e.target.value as 't1' | 't2')}
                             className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none">
@@ -2321,7 +2376,7 @@ export default function MatchupClient({
 
                   {/* Save / Cancel */}
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
-                    <button onClick={() => { setShowBBForm(false); setBbT1P1(''); setBbT1P2(''); setBbT2P1(''); setBbT2P2(''); setBbBetType(''); setBbBetAmount(''); setBbFrontAmount(''); setBbBackAmount(''); setBbTotalAmount(''); setBbSweepEnabled(false); setBbSweepAmount(''); setBbStrokesEnabled(false); setBbStrokesFront(''); setBbStrokesBack(''); setBbStrokesTotal(''); setBbStrokesMode('team'); setBbPlayerStrokesDraft({}); setBbHoleRange('all') }}
+                    <button onClick={() => { setShowBBForm(false); setBbT1P1(''); setBbT1P2(''); setBbT2P1(''); setBbT2P2(''); setBbBetType(''); setBbBetAmount(''); setBbFrontAmount(''); setBbBackAmount(''); setBbTotalAmount(''); setBbSweepEnabled(false); setBbSweepAmount(''); setBbStrokesEnabled(false); setBbStrokesFront(''); setBbStrokesBack(''); setBbStrokesTotal(''); setBbStrokesMode('team'); setBbPlayerStrokesDraft({}); setBbPlayerStrokesSplit(false); setBbHoleRange('all') }}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 bg-white">Cancel</button>
                     <button onClick={handleCreateBB}
                       disabled={!bbT1P1 || !bbT1P2 || !bbT2P1 || !bbT2P2 || new Set([bbT1P1, bbT1P2, bbT2P1, bbT2P2]).size !== 4 || !bbBetType || !bbBetAmount.trim() || savingBB}
@@ -2409,7 +2464,7 @@ export default function MatchupClient({
                                 {m.bet
                                   ? <span className="font-medium whitespace-nowrap" style={{ color: gold, fontSize: 'clamp(9px, 2.3vw, 11px)' }}>Bet: {formatBet(m.bet)}</span>
                                   : <span className="text-gray-300 text-[11px]">No bet</span>}
-                                <button onClick={() => { setEditingBB(m.id); setEditBBHoleRange((m.hole_range ?? 'all') as HoleRange); const p = parseBet(m.bet); const hasPS = !!(m.player_strokes && Object.keys(m.player_strokes).length > 0); setEditBBStrokesMode(hasPS ? 'player' : 'team'); setEditBBPlayerStrokesDraft(Object.fromEntries(Object.entries(m.player_strokes ?? {}).map(([k, v]) => [k, String(v)]))); setEditBBBetType(p.betType); setEditBBBetAmount(p.betType === 'nassau' ? '' : p.amount); setEditBBScoringType(p.scoringType); setEditBBSweepAmount(p.sweepAmount); setEditBBSweepEnabled(!!p.sweepAmount); setEditBBStrokesEnabled(!!p.handicapSide || hasPS); setEditBBStrokesSide((p.handicapSide as 't1' | 't2') || 't1'); setEditBBStrokesFront(p.handicapFront); setEditBBStrokesBack(p.handicapBack); setEditBBStrokesTotal(p.handicapTotal); setEditBBFrontAmount(p.betType === 'nassau' ? String(p.frontAmount || '') : ''); setEditBBBackAmount(p.betType === 'nassau' ? String(p.backAmount || '') : ''); setEditBBTotalAmount(p.betType === 'nassau' ? String(p.totalAmount || '') : ''); setEditBBPresses(m.press ?? []); setBBPressEnabled(false); setNewPressAmount(''); setNewPressStrokes(''); setNewPressStrokesEnabled(false); setNewPressForfeitEnabled(false); setNewPressForfeitSegs({ front: false, back: false, total: false }); setNewPressHoleType('1hole'); setNewPressHoleStart(1); setNewPressHoleEnd(18); setTimeout(() => { const el = editBBRef.current; if (el) { const top = el.getBoundingClientRect().top + window.scrollY - 70; window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }) } }, 50) }}
+                                <button onClick={() => { setEditingBB(m.id); setEditBBHoleRange((m.hole_range ?? 'all') as HoleRange); const p = parseBet(m.bet); const hasPS = !!(m.player_strokes && Object.keys(m.player_strokes).length > 0); setEditBBStrokesMode(hasPS ? 'player' : 'team'); { const d = playerStrokesToDraft(m.player_strokes); setEditBBPlayerStrokesDraft(d.draft); setEditBBPlayerStrokesSplit(d.split) } setEditBBBetType(p.betType); setEditBBBetAmount(p.betType === 'nassau' ? '' : p.amount); setEditBBScoringType(p.scoringType); setEditBBSweepAmount(p.sweepAmount); setEditBBSweepEnabled(!!p.sweepAmount); setEditBBStrokesEnabled(!!p.handicapSide || hasPS); setEditBBStrokesSide((p.handicapSide as 't1' | 't2') || 't1'); setEditBBStrokesFront(p.handicapFront); setEditBBStrokesBack(p.handicapBack); setEditBBStrokesTotal(p.handicapTotal); setEditBBFrontAmount(p.betType === 'nassau' ? String(p.frontAmount || '') : ''); setEditBBBackAmount(p.betType === 'nassau' ? String(p.backAmount || '') : ''); setEditBBTotalAmount(p.betType === 'nassau' ? String(p.totalAmount || '') : ''); setEditBBPresses(m.press ?? []); setBBPressEnabled(false); setNewPressAmount(''); setNewPressStrokes(''); setNewPressStrokesEnabled(false); setNewPressForfeitEnabled(false); setNewPressForfeitSegs({ front: false, back: false, total: false }); setNewPressHoleType('1hole'); setNewPressHoleStart(1); setNewPressHoleEnd(18); setTimeout(() => { const el = editBBRef.current; if (el) { const top = el.getBoundingClientRect().top + window.scrollY - 70; window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }) } }, 50) }}
                                   className="flex items-center justify-center w-7 h-7 rounded-full text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors touch-manipulation" style={{ fontSize: '1.25rem' }}>✎</button>
                               </span>
                             )}
@@ -2535,19 +2590,49 @@ export default function MatchupClient({
                                           </button>
                                         ))}
                                       </div>
-                                      {editBBStrokesMode === 'player' ? (
+                                      {editBBStrokesMode === 'player' ? ((() => {
+                                        const ids = [m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id]
+                                        const split = editBBPlayerStrokesSplit && editBBHoleRange === 'all'
+                                        const cls = 'w-14 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none'
+                                        return (
                                         <div className="space-y-1.5">
-                                          {[m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id].map((pid) => (
+                                          {editBBHoleRange === 'all' && (
+                                            <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                                              <input type="checkbox" checked={editBBPlayerStrokesSplit} onChange={(e) => { const on = e.target.checked; setEditBBPlayerStrokesSplit(on); setEditBBPlayerStrokesDraft((prev) => splitDraftToggle(prev, ids, on)) }} className="rounded" />
+                                              Separate front &amp; back
+                                            </label>
+                                          )}
+                                          {split && (
+                                            <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
+                                              <span className="flex-1" />
+                                              <span className="w-14 text-center">Front</span>
+                                              <span className="w-14 text-center">Back</span>
+                                            </div>
+                                          )}
+                                          {ids.map((pid) => (
                                             <div key={pid} className="flex items-center gap-2">
                                               <span className="flex-1 min-w-0 text-xs text-gray-800 truncate">{players.find((p) => p.id === pid)?.name.split(' ')[0] ?? 'Player'}</span>
-                                              <input type="number" min="0" step="1" placeholder="0"
-                                                value={editBBPlayerStrokesDraft[pid] ?? ''}
-                                                onChange={(e) => setEditBBPlayerStrokesDraft((prev) => ({ ...prev, [pid]: e.target.value }))}
-                                                className="w-14 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none" />
+                                              {split ? (<>
+                                                <input type="number" min="0" step="1" placeholder="0" aria-label="Front strokes"
+                                                  value={editBBPlayerStrokesDraft[`${pid}:front`] ?? ''}
+                                                  onChange={(e) => setEditBBPlayerStrokesDraft((prev) => ({ ...prev, [`${pid}:front`]: e.target.value }))}
+                                                  className={cls} />
+                                                <input type="number" min="0" step="1" placeholder="0" aria-label="Back strokes"
+                                                  value={editBBPlayerStrokesDraft[`${pid}:back`] ?? ''}
+                                                  onChange={(e) => setEditBBPlayerStrokesDraft((prev) => ({ ...prev, [`${pid}:back`]: e.target.value }))}
+                                                  className={cls} />
+                                              </>) : (
+                                                <input type="number" min="0" step="1" placeholder="0"
+                                                  value={editBBPlayerStrokesDraft[pid] ?? ''}
+                                                  onChange={(e) => setEditBBPlayerStrokesDraft((prev) => ({ ...prev, [pid]: e.target.value }))}
+                                                  className={cls} />
+                                              )}
                                             </div>
                                           ))}
-                                          <p className="text-xs text-gray-400">Strokes are applied automatically on each player&apos;s hardest handicap holes.</p>
+                                          <p className="text-xs text-gray-400">{split ? 'Front strokes go on the hardest holes 1–9, back strokes on the hardest holes 10–18.' : <>Strokes are applied automatically on each player&apos;s hardest handicap holes.</>}</p>
                                         </div>
+                                        )
+                                      })()
                                       ) : (<>
                                       <select value={editBBStrokesSide} onChange={(e) => setEditBBStrokesSide(e.target.value as 't1' | 't2')}
                                         className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none">
@@ -2811,7 +2896,8 @@ export default function MatchupClient({
                                           const ps = rowIds
                                             .map((id) => ({
                                               name: players.find((p) => p.id === id)?.name.split(' ')[0] ?? '?',
-                                              strokes: Number(m.player_strokes?.[id]) || 0,
+                                              strokes: bbPlayerStrokeTotal(m.player_strokes?.[id]),
+                                              split: splitLabel(m.player_strokes?.[id]),
                                               holesLabel: Object.entries(bbCardStrokeHoles[id] ?? {})
                                                 .sort((a, b) => Number(a[0]) - Number(b[0]))
                                                 .map(([h, n]) => (n as number) > 1 ? `${h} (×${n})` : h)

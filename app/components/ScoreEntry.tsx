@@ -6,7 +6,7 @@ import OfflineSyncBanner from './OfflineSyncBanner'
 import {
   computeHoleBallScores, computeTeamBallSummary,
   computeHoleDaytonaWithSides, computeDaytonaSidesSummary, playerCoversHole,
-  computeBBStrokeHoles, applyPlayerStrokesToScoreMap, pressForfeitMap, type PressForfeit, roundHcp,
+  computeBBStrokeHoles, applyPlayerStrokesToScoreMap, type BBPlayerStrokes, pressForfeitMap, type PressForfeit, roundHcp,
   computeMedley, computeAllMatchupPayouts, type MedleyMatchup,
   computePlayerDaytonaPointsSplit, computePlayerDaytonaDollarsSplit,
   computeHoleDaytonaPointsFiveMan, daytonaAutoStrokeIds, bankerStrokeSplit,
@@ -31,7 +31,7 @@ type AllPlayer = { id: string; team_id: string; name: string; position: number |
 type BallValue = { ball_number: number; value_dollars: number }
 type MPressEntry = { id: string; holeStart: number; holeEnd: number; amount: number; strokesSide?: 'p1' | 'p2'; strokes?: number; forfeit?: PressForfeit | null }
 type SavedMatchup = { id: string; player1_id: string; player2_id: string; bet: string; press?: MPressEntry[]; hole_range?: string | null }
-type BestBallMatchup = { id: string; team1_player1_id: string; team1_player2_id: string; team2_player1_id: string; team2_player2_id: string; bet: string; press?: MPressEntry[]; hole_range?: string | null; player_strokes?: Record<string, number> | null }
+type BestBallMatchup = { id: string; team1_player1_id: string; team1_player2_id: string; team2_player1_id: string; team2_player2_id: string; bet: string; press?: MPressEntry[]; hole_range?: string | null; player_strokes?: BBPlayerStrokes | null }
 type MatchupBetType = 'nassau' | 'straight'
 type MatchupScoringType = 'stroke' | 'match'
 type PayoutsData = {

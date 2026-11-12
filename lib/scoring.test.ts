@@ -6,6 +6,8 @@ import {
   roundHcp,
   computeBBStrokeHoles,
   applyPlayerStrokesToScoreMap,
+  buildBBPlayerStrokes,
+  bbPlayerStrokesDraft,
   playerCoversHole,
   sortPlayersForDisplay,
   sortRoundPlayersByTeam,
@@ -271,6 +273,33 @@ describe('computeBBStrokeHoles', () => {
   it('rounds fractional strokes per the rounding mode and skips zero', () => {
     expect(computeBBStrokeHoles({ p1: 0.9 }, holes)).toEqual({})
     expect(computeBBStrokeHoles({ p1: 0.9 }, holes, 'nearest').p1).toEqual({ 1: 1 })
+  })
+
+  it('splits front and back strokes onto their own nines', () => {
+    // Hardest front hole is SI 1 (hole 1); hardest back is SI 10 (hole 10)
+    const out = computeBBStrokeHoles({ p1: { front: 2, back: 1 } }, holes)
+    expect(out.p1).toEqual({ 1: 1, 2: 1, 10: 1 })
+    expect(computeBBStrokeHoles({ p1: { front: 0, back: 3 } }, holes).p1).toEqual({ 10: 1, 11: 1, 12: 1 })
+    expect(computeBBStrokeHoles({ p1: { front: 0, back: 0 } }, holes)).toEqual({})
+  })
+
+  it('ignores the half of a split that falls outside the matchup holes', () => {
+    const front9 = holes.filter((h) => h.hole_number <= 9)
+    expect(computeBBStrokeHoles({ p1: { front: 1, back: 4 } }, front9).p1).toEqual({ 1: 1 })
+  })
+})
+
+describe('buildBBPlayerStrokes / bbPlayerStrokesDraft', () => {
+  it('saves whole strokes per player, dropping zeros', () => {
+    expect(buildBBPlayerStrokes(['a', 'b', 'c'], { a: '2.7', b: '-1', c: '' })).toEqual({ a: 2 })
+    expect(buildBBPlayerStrokes(['a'], { a: '0' })).toBeNull()
+  })
+  it('saves a front/back split when asked', () => {
+    expect(buildBBPlayerStrokes(['a', 'b'], { 'a:front': '2', 'a:back': '1', 'b:front': '0' }, true)).toEqual({ a: { front: 2, back: 1 } })
+  })
+  it('round-trips into the draft', () => {
+    expect(bbPlayerStrokesDraft({ a: { front: 2, back: 1 }, b: 3 })).toEqual({ draft: { 'a:front': '2', 'a:back': '1', a: '3', 'b:front': '2', 'b:back': '1', b: '3' }, split: true })
+    expect(bbPlayerStrokesDraft({ a: 2 })).toEqual({ draft: { a: '2' }, split: false })
   })
 })
 

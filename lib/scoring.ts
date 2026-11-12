@@ -271,29 +271,100 @@ export function bankerStrokeSplit(
 }
 
 // ── Best Ball per-player handicap strokes ────────────────────────────────────
+// A player's strokes are either one number for the whole match, or a front/back
+// split ({ front, back }) when the front nine and back nine get different counts.
+export type BBPlayerStrokeValue = number | { front?: number | null; back?: number | null }
+export type BBPlayerStrokes = Record<string, BBPlayerStrokeValue>
+
+export function isSplitPlayerStrokes(v: BBPlayerStrokeValue | null | undefined): v is { front?: number | null; back?: number | null } {
+  return v != null && typeof v === 'object'
+}
+
+// Total strokes a player receives (front + back for a split).
+export function bbPlayerStrokeTotal(v: BBPlayerStrokeValue | null | undefined): number {
+  if (v == null) return 0
+  if (isSplitPlayerStrokes(v)) return Math.max(0, Number(v.front) || 0) + Math.max(0, Number(v.back) || 0)
+  return Math.max(0, Number(v) || 0)
+}
+
+// "3" for a single count, "F 2 / B 1" for a split.
+export function bbPlayerStrokeLabel(v: BBPlayerStrokeValue | null | undefined): string {
+  if (isSplitPlayerStrokes(v)) return `F ${Math.max(0, Number(v.front) || 0)} / B ${Math.max(0, Number(v.back) || 0)}`
+  return String(bbPlayerStrokeTotal(v))
+}
+
+// The By Player form's draft as saved: whole, not negative, only players above 0,
+// or null. With `split`, a player's front and back are read from the
+// `${id}:front` and `${id}:back` keys and saved as { front, back }.
+export function buildBBPlayerStrokes(ids: string[], draft: Record<string, string>, split = false): BBPlayerStrokes | null {
+  const whole = (v: string | undefined) => Math.max(0, Math.floor(parseFloat(v ?? '') || 0))
+  const out: BBPlayerStrokes = {}
+  for (const id of ids) {
+    if (split) {
+      const front = whole(draft[`${id}:front`]), back = whole(draft[`${id}:back`])
+      if (front + back > 0) out[id] = { front, back }
+    } else {
+      const n = whole(draft[id])
+      if (n > 0) out[id] = n
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null
+}
+
+// The saved strokes back into the form's draft; `split` is true when any player
+// has a front/back split.
+export function bbPlayerStrokesDraft(ps: BBPlayerStrokes | null | undefined): { draft: Record<string, string>; split: boolean } {
+  const draft: Record<string, string> = {}
+  const entries = Object.entries(ps ?? {})
+  const split = entries.some(([, v]) => isSplitPlayerStrokes(v))
+  for (const [id, v] of entries) {
+    if (split) {
+      // A plain count beside split ones is shown halved, the odd stroke on the front
+      const n = bbPlayerStrokeTotal(v)
+      draft[`${id}:front`] = String(isSplitPlayerStrokes(v) ? Math.max(0, Number(v.front) || 0) : Math.ceil(n / 2))
+      draft[`${id}:back`] = String(isSplitPlayerStrokes(v) ? Math.max(0, Number(v.back) || 0) : Math.floor(n / 2))
+    }
+    draft[id] = String(bbPlayerStrokeTotal(v))
+  }
+  return { draft, split }
+}
+
 // Allocates each player's stroke count across the hardest holes (lowest
 // stroke_index first; holes without an index come last, then by hole number).
+// A front/back split allocates the front count over holes 1-9 and the back
+// count over holes 10-18 (of the holes passed in).
 // Returns playerId → (hole_number → strokes received on that hole).
 export function computeBBStrokeHoles(
-  playerStrokes: Record<string, number> | null | undefined,
+  playerStrokes: BBPlayerStrokes | null | undefined,
   holes: { hole_number: number; stroke_index?: number | null }[],
   handicapRounding?: string | null
 ): Record<string, Record<number, number>> {
   const out: Record<string, Record<number, number>> = {}
   if (!playerStrokes || holes.length === 0) return out
-  const ordered = [...holes].sort((a, b) => {
+  const order = (hs: typeof holes) => [...hs].sort((a, b) => {
     const ai = a.stroke_index ?? 999, bi = b.stroke_index ?? 999
     return ai !== bi ? ai - bi : a.hole_number - b.hole_number
   })
-  for (const [pid, raw] of Object.entries(playerStrokes)) {
+  const ordered = order(holes)
+  const orderedFront = order(holes.filter((h) => h.hole_number <= 9))
+  const orderedBack = order(holes.filter((h) => h.hole_number > 9))
+  const allocate = (perHole: Record<number, number>, raw: unknown, pool: typeof holes) => {
     const n = Math.max(0, roundHcp(Number(raw) || 0, handicapRounding))
-    if (n === 0) continue
-    const perHole: Record<number, number> = {}
+    if (n === 0 || pool.length === 0) return
     for (let i = 0; i < n; i++) {
-      const h = ordered[i % ordered.length].hole_number
+      const h = pool[i % pool.length].hole_number
       perHole[h] = (perHole[h] ?? 0) + 1
     }
-    out[pid] = perHole
+  }
+  for (const [pid, raw] of Object.entries(playerStrokes)) {
+    const perHole: Record<number, number> = {}
+    if (isSplitPlayerStrokes(raw)) {
+      allocate(perHole, raw.front, orderedFront)
+      allocate(perHole, raw.back, orderedBack)
+    } else {
+      allocate(perHole, raw, ordered)
+    }
+    if (Object.keys(perHole).length > 0) out[pid] = perHole
   }
   return out
 }
@@ -1211,7 +1282,7 @@ export function computeSkinsResults(
 type PayoutHole = { hole_number: number; par: number; stroke_index?: number | null }
 export type MatchupPressEntry = { id: string; holeStart: number; holeEnd: number; amount: number; strokesSide?: string; strokes?: number; forfeit?: PressForfeit | null }
 export type PayoutH2HMatchup = { id: string; player1_id: string; player2_id: string; bet: string; press?: MatchupPressEntry[] | null; hole_range?: string | null }
-export type PayoutBBMatchup = { id: string; team1_player1_id: string; team1_player2_id: string; team2_player1_id: string; team2_player2_id: string; bet: string; press?: MatchupPressEntry[] | null; hole_range?: string | null; player_strokes?: Record<string, number> | null }
+export type PayoutBBMatchup = { id: string; team1_player1_id: string; team1_player2_id: string; team2_player1_id: string; team2_player2_id: string; bet: string; press?: MatchupPressEntry[] | null; hole_range?: string | null; player_strokes?: BBPlayerStrokes | null }
 export type MatchupPayoutSegment = {
   name: 'Front' | 'Back' | 'Total'
   settled: boolean
