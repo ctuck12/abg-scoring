@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   computeTeamBallSummary, playerCoversHole,
-  computeBBStrokeHoles, applyPlayerStrokesToScoreMap,
+  computeBBStrokeHoles, applyPlayerStrokesToScoreMap, type BBPlayerStrokes,
   pressForfeitMap, type PressForfeit,
   computeMedley, type MedleyMatchup, roundHcp,
   computePlayerDaytonaPointsSplit, computePlayerDaytonaDollarsSplit,
@@ -74,7 +74,7 @@ function buildSegmentBreakdown(
 // ── Matchup payout types + helpers ───────────────────────────────────────────
 type PressEntry = { id: string; holeStart: number; holeEnd: number; amount: number; strokesSide?: 'p1' | 'p2'; strokes?: number; forfeit?: PressForfeit | null }
 type SavedMatchup = { id: string; player1_id: string; player2_id: string; bet: string; press: PressEntry[]; hole_range?: string | null }
-type BestBallMatchup = { id: string; team1_player1_id: string; team1_player2_id: string; team2_player1_id: string; team2_player2_id: string; bet: string; press?: PressEntry[]; hole_range?: string | null; player_strokes?: Record<string, number> | null }
+type BestBallMatchup = { id: string; team1_player1_id: string; team1_player2_id: string; team2_player1_id: string; team2_player2_id: string; bet: string; press?: PressEntry[]; hole_range?: string | null; player_strokes?: BBPlayerStrokes | null }
 type HammerMatchup = { id: string; team1_id: string; team2_id: string; base_bet: number; auto_handicap: boolean }
 type HammerHoleState = { stake: number; lastHammerTeam: 1 | 2 | null; foldedTeam: 1 | 2 | null; preTeeUsed: boolean }
 type MatchupBetType = 'nassau' | 'straight'

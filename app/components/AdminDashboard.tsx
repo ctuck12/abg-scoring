@@ -33,7 +33,7 @@ import {
 import {
   computeTeamBallSummary, calculatePoolPayouts,
   computeDaytonaSidesSummary, settleDaytonaPlayerPoints,
-  computeBBStrokeHoles, applyPlayerStrokesToScoreMap,
+  computeBBStrokeHoles, applyPlayerStrokesToScoreMap, type BBPlayerStrokes,
   pressForfeitMap, type PressForfeit,
   computeMedley, type MedleyMatchup,
   computePlayerDaytonaDollarsSplit,
@@ -163,7 +163,7 @@ type BestBallMatchup = {
   bet: string
   press?: PressEntry[]
   hole_range?: string | null
-  player_strokes?: Record<string, number> | null
+  player_strokes?: BBPlayerStrokes | null
 }
 
 type MatchupBetType = 'nassau' | 'straight'
